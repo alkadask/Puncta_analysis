@@ -53,7 +53,6 @@ for x in imgfiles:                          #create loop for number of images in
     snr = nf/bgf                            #calculate signal to noise ratio
 
     strength = np.mean([snr[i] for i in argrelmax(snr,order=10)[0]])-np.mean([snr[i] for i in argrelmin(snr,order=10)[0]])
-    print strength, '\t', x
     gfsnr=gaussian_filter(snr, 1/strength)
 
     #add image data to pandas dataframe
@@ -112,7 +111,7 @@ for x in imgfiles:                          #create loop for number of images in
     re2 = [pd[i]+0.5*(re[i]-pd[i]) for i in range(len(peaks[0]))]
     
     print x
-    #create plots
+    #plot raw and filtered signal-to-noise ratio vs. distance from cell body and identified peaks
     plt.figure(1, figsize=(0.015*imsize[1],5))
     plt.title(x+' peaks')
     plt.xlabel('Distance (um)')
@@ -120,13 +119,7 @@ for x in imgfiles:                          #create loop for number of images in
     plt.axis([0, max(dist), 0, max(snr)])
     plt.plot(dist, snr, 'y-')
     plt.plot(dist, gfsnr, 'r-')
-#    plt.plot(dist, bslsnr, 'c-')
     plt.plot(pd, psnr, 'go')
-#    plt.plot(dist, a, 'r-')
-#    plt.plot(pd, [a[i] for i in peaks[0]], 'go')
-#    plt.hlines([a[i] for i in peaks[0]], le2, re2)
-#    plt.plot(lex, ley, 'bo')
-#    plt.plot(rex, rey, 'co')
     plt.show()
     plt.close()
     
@@ -139,19 +132,15 @@ for x in imgfiles:                          #create loop for number of images in
     frame = pandas.DataFrame([[date, strain, neuron, lr, x, imsize[1], dist[-1], np.mean(nf), np.mean(snr), strength, 'Puncta analyzed', len(pd), np.mean(psnr), np.mean(pwhm), np.mean(ipd), np.median(ipd), len(pd)/dist[-1], slope, intercept, r_value, p_value, std_err]], columns=cols_Metadata)
     df_Metadata = df_Metadata.append(frame)
 
+    #plot inter-punctum interval vs. distance from cell body
     plt.figure(2, figsize=(10,5))
     sns.scatterplot(x='Normalized distance', y='Inter-punctum interval', data=all_data3)
     plt.show()
     plt.close()
-    
-#    plt.figure(3, figsize=(10,5))
-#    sns.scatterplot(x='Normalized distance', y='Punctum width', data=all_data2)
-#    plt.show()
-#    plt.close()
 
 
 #save data to excel file
-dfpath = '/Users/alkadas/Desktop/Data/Microscopy/IPD/'        #filepath where the data is
+dfpath = '/Users/alkadas/Desktop/Data/Microscopy/IPD/'        #filepath where the excel file will be saved
 #dfpath = 'C:/Users/alaka/Google Drive/Microscopy/IPD/'
 wb = pandas.ExcelWriter(dfpath+strain+'_Data.xlsx', engine='xlsxwriter')
 df_Data.to_excel(wb, sheet_name='Data')
