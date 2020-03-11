@@ -48,3 +48,7 @@ Algorithm should output (display only, not saved) traces of each neuron, with pu
 Verify visually if peaks are appropriately identified
 Algorithm will save an excel file with all raw data, peaks data, and overall analysis data in the output folder. The algorithm will save to a new file with timestamp every time the program is run (Files will not be overwritten)
 For all further analysis and plotting, read this excel file in pandas and extract data as needed.
+
+Changes in Peakfinder26.py compared to Peakfinder25.py:
+The most major change is that in this version we estimate the baseline fluorescence between puncta by fitting a cubic spline through points sampled by a argrelmin function with high order. We then subtract the baseline from the total neurite fluorescence. This operation brings the base of most major peaks down to zero. The find_peaks function is applied on this array.
+Minor differences - No smoothing is applied and also not using the controversial 'signal to noise ratio' calculation used in the last version for normalization. This affords direct comparison of fluorescence intensity levels between strains.
