@@ -4,20 +4,19 @@ import numpy as np
 import pandas
 from scipy.signal import find_peaks, argrelmin
 from scipy.interpolate import CubicSpline
-from scipy import stats
 import imageio
 import os
 import fnmatch
 import datetime
 
 
-folder='Test_dataset'
-#fpath = '/Users/alkadas/Desktop/Data/IPD/'+folder+'/'        #filepath where the data is
+folder='Test'
+#fpath = '/Users/alkadas/Desktop/Data/IPD/'+folder+'/'        #filepath for Mac where the data is
 fpath = 'C:/Users/alaka/Google Drive/IPD/'+folder+'/'
 imgfiles = fnmatch.filter(os.listdir(fpath), '*.tif')
 
 #PARAMETERS
-f = os.path.basename(__file__)
+f = os.path.basename(__file__)                  #stores the filename of the current script in f
 toa = str(datetime.datetime.today()).split()
 today = toa[0]
 now = toa[1]
@@ -27,7 +26,7 @@ prom = 5                #set prominence parameter for find_peaks
 df_Parameters = pandas.DataFrame(data={'1. Date of analysis':today, '2. Time of analysis':now, '3. Microns per pixel':mu_per_px, '4. Script name':f, '5. argrelmin order':order, '6. find_peaks prominence':prom}, index=[0])
 
 #specify columns of the pandas dataframe and excel sheets
-cols_Data =     ['Date', 'Strain', 'Neuron', 'L/R', 'ImageID', 'Distance', 'Normalized distance','Raw intensity', 'Background intensity', 'Neurite intensity']
+cols_Data =     ['Date', 'Strain', 'Neuron', 'L/R', 'ImageID', 'Distance', 'Normalized distance','Raw intensity', 'Background intensity', 'Neurite intensity', 'Baseline']
 cols_Peaks =    ['Date', 'Strain', 'Neuron', 'L/R', 'ImageID', 'Distance', 'Normalized distance', 'Punctum max intensity', 'Punctum width']
 cols_IPDs =     ['Date', 'Strain', 'Neuron', 'L/R', 'ImageID', 'Distance', 'Normalized distance', 'Inter-punctum interval']
 cols_Analysis = ['Date', 'Strain', 'Neuron', 'L/R', 'ImageID', 'Image size', 'Max neurite length', 'Average neurite intensity','Total peaks', 'Average peak intensity', 'Average peak width', 'Average ipd', 'Median ipd']
@@ -43,7 +42,7 @@ for x in imgfiles:                          #create loop for number of images in
     
     #extract info from filename
     date=x.split('_')[0]
-    strain = x.split('_')[1]
+    strain = folder
     neuron = x.split('_')[3][:3]
     lr = x.split('_')[3][3]
 
@@ -57,13 +56,13 @@ for x in imgfiles:                          #create loop for number of images in
     bgf = np.mean(bg, axis=0)               #calculate average background fluorescence
     nf = rawf - bgf                         #calculate background subtracted neurite fluorescence
     
-    #set negative nf values to zero
-    for i in range(imsize[1]):
-        if nf[i]<0: nf[i]=0
     
     #finding baseline
     minsp = np.concatenate((0, argrelmin(nf, order=order)[0], imsize[1]), axis=None)
     minsh = np.concatenate((nf[minsp[1]], [nf[i] for i in minsp[1:-1]], nf[minsp[-2]]), axis=None)
+    #set negative minsh values to zero
+    for i in range(len(minsh)):
+        if minsh[i]<0: minsh[i]=0
     cs = CubicSpline(minsp, minsh, extrapolate=False)(d)
     
     plt.figure(1, figsize=(0.015*imsize[1],15))
@@ -71,25 +70,29 @@ for x in imgfiles:                          #create loop for number of images in
     plt.title(x+' Finding baseline')
     plt.xlabel('Distance (um)')
     plt.ylabel('Intensity (AU)')
-    plt.axis([0, max(dist), 0, 50])
+    plt.axis([0, max(dist), min(nf), 50])
     plt.plot(dist, nf, 'y-')
     plt.plot(minsp*mu_per_px, minsh, 'ro', dist, cs, 'k-')
     
     
     #add image data to pandas dataframe
-    all_data1 = pandas.DataFrame({'Date':[date]*imsize[1], 'Strain':[strain]*imsize[1], 'Neuron':[neuron]*imsize[1], 'L/R':[lr]*imsize[1], 'ImageID':[x]*imsize[1], 'Distance':dist, 'Normalized distance':normdist, 'Raw intensity':rawf, 'Background intensity':bgf, 'Neurite intensity':nf}, columns=cols_Data)
+    all_data1 = pandas.DataFrame({'Date':[date]*imsize[1], 'Strain':[strain]*imsize[1], 'Neuron':[neuron]*imsize[1], 'L/R':[lr]*imsize[1], 'ImageID':[x]*imsize[1], 'Distance':dist, 'Normalized distance':normdist, 'Raw intensity':rawf, 'Background intensity':bgf, 'Neurite intensity':nf, 'Baseline':cs}, columns=cols_Data)
     df_Data=df_Data.append(all_data1)
 
+    #baseline subtracted trace with no negative values
+    bsub = nf-cs
+    for i in range(len(bsub)):
+        if bsub[i]<0: bsub[i]=0
 
     #find peaks
-    peaks = find_peaks(nf-cs, height=0, prominence=prom, width=0, rel_height=0.5)
+    peaks = find_peaks(bsub, height=0, prominence=prom, width=0, rel_height=0.5)
     pd = peaks[0]*mu_per_px
     pnd = pd/dist[-1]
     pmi = [nf[i] for i in peaks[0]]
     ipd = np.diff(pd)
     ipdd = [pd[i]+ipd[i]/2 for i in range(0,len(ipd))]
     ipdnd = ipdd/dist[-1]
-    slope, intercept, r_value, p_value, std_err = stats.linregress(ipdnd,ipd)
+#    slope, intercept, r_value, p_value, std_err = stats.linregress(ipdnd,ipd)
     
     
     #create subplot 2
@@ -97,7 +100,7 @@ for x in imgfiles:                          #create loop for number of images in
     plt.title(x+' peaks')
     plt.xlabel('Distance (um)')
     plt.ylabel('Intensity (AU)')
-    plt.axis([0, max(dist), 0, 50])
+    plt.axis([0, max(dist), min(nf), 50])
     plt.plot(dist, nf, 'y-')
     plt.plot(pd, pmi, 'go')
     #create subplot3
@@ -106,7 +109,7 @@ for x in imgfiles:                          #create loop for number of images in
     plt.xlabel('Distance (um)')
     plt.ylabel('Baseline subtracted intensity (AU)')
     plt.axis([0, max(dist), 0, 50])
-    plt.plot(dist, nf-cs, 'y-')
+    plt.plot(dist, bsub, 'y-')
     plt.hlines(peaks[1]['width_heights'], peaks[1]['left_ips']*mu_per_px, peaks[1]['right_ips']*mu_per_px)
     plt.show()
     plt.close()
@@ -121,7 +124,7 @@ for x in imgfiles:                          #create loop for number of images in
 
 #save data to excel file
 #dfpath = '/Users/alkadas/Desktop/Data/IPD/'        #filepath where the data is
-dfpath = 'C:/Users/alaka/Google Drive/IPD/'
+dfpath = 'C:/Users/alaka/Google Drive/IPD/Analysis_20200311/'
 timestamp = today.replace('-','')+'-'+now.replace(':','')[:6]
 wb = pandas.ExcelWriter(dfpath+timestamp+'_'+folder+'_Data.xlsx', engine='xlsxwriter')
 df_Data.to_excel(wb, sheet_name='Data')
