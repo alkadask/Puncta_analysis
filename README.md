@@ -34,6 +34,8 @@ Save straightened image.
 Straightened file name: yyyymmdd_Strain_xx_Neuron-x
 Every straightened image should be easily traceable to its raw image file.
 
+Note: The ImageJ macro script, Neuron_tracing.ijm can partially automate the repetitive steps. Manual verification and adjustments are still needed but the workload is considerably reduced.
+
 QUALITY CONTROL:
 Do not straighten images with the following issues (trace neuron and save ROI):
 -- Puncta out of focus
